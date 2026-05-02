@@ -29,7 +29,8 @@ function $(id) {
 
 function getApiBaseUrl() {
   const runtime = typeof window !== "undefined" ? window.__API_BASE_URL__ : "";
-  return String(runtime || localStorage.getItem("rm_api_base_url_override") || "").trim().replace(/\/$/, "");
+  const env = typeof process !== "undefined" && process.env ? process.env.API_BASE_URL : "";
+  return String(runtime || env || localStorage.getItem("rm_api_base_url_override") || "").trim().replace(/\/$/, "");
 }
 
 function apiPath(path) {
