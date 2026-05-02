@@ -1,6 +1,11 @@
 """
 Find Yourself — 求职伴侣 web API + static UI.
-Inspired by https://github.com/srbhr/Resume-Matcher (simplified product slice).
+Current product focus:
+- chat
+- resume input
+- analysis and optimization
+- action and reflection
+- memory and profile persistence
 """
 
 from __future__ import annotations
