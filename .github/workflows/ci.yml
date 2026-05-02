@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - "**.py"
+      - "requirements.txt"
+      - "static/**"
+      - "public/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "**.py"
+      - "requirements.txt"
+      - "static/**"
+      - "public/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+
+jobs:
+  test-and-sync-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Verify static/public sync
+        run: python scripts/sync_public.py --check

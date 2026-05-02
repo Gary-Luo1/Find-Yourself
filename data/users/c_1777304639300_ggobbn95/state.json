@@ -1,0 +1,18 @@
+{
+  "current_stage": "onboarding",
+  "current_main_problem": "",
+  "recent_actions": [],
+  "application_status": {
+    "has_started_applying": false,
+    "interview_count": 0,
+    "offer_count": 0
+  },
+  "recent_feedback": "",
+  "emotion_state": {
+    "current": "neutral",
+    "trend": "",
+    "note": ""
+  },
+  "next_actions": [],
+  "last_updated_at": "1777645644"
+}

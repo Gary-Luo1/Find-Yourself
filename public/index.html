@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fbfbfd" />
+    <meta name="app-version" content="2026-04-20-pixel-1" />
+    <title>Resume Matcher Lite</title>
+    <link rel="stylesheet" href="/static/styles.css?v=2026-04-20-pixel-1" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主内容</a>
+
+    <header class="nav-shell">
+      <nav class="nav wrap" aria-label="主导航">
+        <div class="nav-brand">
+          <span class="nav-logo" aria-hidden="true"></span>
+          <span class="nav-title">Resume Matcher</span>
+        </div>
+        <button type="button" class="btn btn-compact btn-nav" id="btnSettings">
+          模型设置
+        </button>
+      </nav>
+    </header>
+
+    <section class="hero wrap" aria-labelledby="hero-heading">
+      <p class="eyebrow">Lite</p>
+      <h1 id="hero-heading" class="hero-title">让简历与岗位，更契合。</h1>
+      <p class="hero-sub">
+        粘贴或上传 PDF / Word，与 JD 一并交给大模型 — 匹配分析、针对 JD 的润色与求职信。思路来自
+        <a
+          href="https://github.com/srbhr/Resume-Matcher"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Resume Matcher</a
+        >
+        的简化版。
+      </p>
+    </section>
+
+    <dialog id="dlgSettings" class="modal">
+      <form method="dialog" class="modal-card">
+        <h2 class="modal-title">模型设置</h2>
+        <p class="modal-lead">
+          API Key 默认只保存在当前会话，关闭页面后即失效。你可以手动勾选“记住 API Key（本机）”再长期保存。
+        </p>
+        <label class="field">
+          <span class="field-label">API Key</span>
+          <input
+            type="password"
+            id="apiKey"
+            autocomplete="off"
+            placeholder="sk-…"
+            aria-describedby="apiKeyHint"
+          />
+        </label>
+        <p class="field-hint" id="apiKeyHint">默认仅当前会话有效；勾选“记住”才会长期保存。</p>
+        <label class="field-checkbox">
+          <input type="checkbox" id="rememberKey" />
+          <span>记住 API Key（保存在本机浏览器）</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Base URL</span>
+          <span class="field-hint" id="baseUrlHint">必须是 http(s) 地址，建议包含 /v1</span>
+          <input
+            type="url"
+            id="baseUrl"
+            placeholder="https://api.openai.com/v1"
+            required
+            aria-describedby="baseUrlHint"
+          />
+        </label>
+        <label class="field">
+          <span class="field-label">模型名</span>
+          <span class="field-hint" id="modelHint">例如 gpt-4o-mini、deepseek-chat</span>
+          <input type="text" id="modelName" placeholder="gpt-4o-mini" required aria-describedby="modelHint" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnClearKey">清除本地密钥</button>
+          <button type="button" class="btn btn-primary" id="btnSaveSettings">完成</button>
+        </div>
+      </form>
+    </dialog>
+
+    <main id="main" class="wrap main-flow">
+      <section class="panel actions full-width" aria-labelledby="act-heading">
+        <h2 id="act-heading" class="section-heading">操作</h2>
+        <div class="demo-tools">
+          <button type="button" class="btn btn-secondary btn-compact" id="btnDemoFill">演示模式：填入示例</button>
+          <button type="button" class="btn btn-ghost btn-compact" id="btnDemoClear">清空示例</button>
+          <button type="button" class="btn btn-secondary btn-compact" id="btnDraftSave">保存草稿</button>
+          <button type="button" class="btn btn-ghost btn-compact" id="btnDraftClear">清空草稿</button>
+        </div>
+        <div class="action-groups">
+          <section class="action-module" aria-label="核心分析">
+            <h3 class="action-module-title">核心分析</h3>
+            <div class="action-grid">
+              <button type="button" class="btn btn-primary btn-block btn-priority" id="btnAnalyze">匹配分析</button>
+              <button type="button" class="btn btn-primary btn-block btn-priority" id="btnAnalyzeMulti">多 JD 对比</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnAtsCheck">ATS 检查</button>
+            </div>
+          </section>
+          <section class="action-module" aria-label="生成与训练">
+            <h3 class="action-module-title">生成与训练</h3>
+            <div class="action-grid">
+              <button type="button" class="btn btn-primary btn-block btn-priority" id="btnTailor">简历润色</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnInterviewSim">面试模拟</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnCover">求职信</button>
+            </div>
+          </section>
+          <section class="action-module" aria-label="流程控制">
+            <h3 class="action-module-title">流程控制</h3>
+            <div class="action-grid">
+              <button type="button" class="btn btn-secondary btn-block" id="btnRetryLast">重试上次任务</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnCompareImprove">改写前后对比</button>
+              <button type="button" class="btn btn-secondary btn-block" id="btnCancel" hidden>取消当前任务</button>
+            </div>
+          </section>
+        </div>
+        <p class="hint" id="hintApi">
+          首次使用请点右上角「模型设置」填写 API Key，或在服务器 <code>.env</code> 中配置。
+        </p>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <div id="statusError" class="status error" role="alert" aria-live="assertive"></div>
+      </section>
+
+      <section class="panel inputs panel-emphasis" aria-labelledby="resume-heading">
+        <h2 id="resume-heading" class="section-heading">简历</h2>
+        <label class="field">
+          <span class="field-label">简历全文</span>
+          <span class="field-hint">粘贴或上传 .pdf / .docx</span>
+          <div class="upload-bar">
+            <input
+              type="file"
+              id="fileResume"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              aria-describedby="resumeUploadHint"
+            />
+            <span class="upload-hint" id="resumeUploadHint"
+              >上传后自动填入下方，可继续编辑。旧版 Word 请先另存为 .docx</span
+            >
+          </div>
+          <textarea
+            id="resume"
+            rows="14"
+            placeholder="粘贴你的简历，或先上传文件…"
+            required
+            aria-required="true"
+            aria-describedby="resumeUploadHint"
+          ></textarea>
+        </label>
+      </section>
+
+      <section class="panel inputs panel-emphasis" aria-labelledby="job-heading">
+        <h2 id="job-heading" class="section-heading">岗位描述（JD）</h2>
+        <label class="field">
+          <span class="field-label">目标岗位描述（JD）</span>
+          <span class="field-hint">粘贴或上传 .pdf / .docx</span>
+          <div class="upload-bar">
+            <input
+              type="file"
+              id="fileJob"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              aria-describedby="jobUploadHint"
+            />
+            <span class="upload-hint" id="jobUploadHint">网页上的 JD 可先复制到 Word，再导出为 docx / PDF</span>
+          </div>
+          <textarea
+            id="job"
+            rows="10"
+            placeholder="粘贴 JD，或上传岗位说明文件…"
+            required
+            aria-required="true"
+            aria-describedby="jobUploadHint"
+          ></textarea>
+        </label>
+        <label class="field">
+          <span class="field-label">多 JD 对比（可选）</span>
+          <span class="field-hint">全部为选填；可按需新增，最多 5 个。</span>
+          <div class="demo-tools">
+            <button type="button" class="btn btn-secondary btn-compact" id="btnAddJD">新增 JD</button>
+            <button type="button" class="btn btn-ghost btn-compact" id="btnCollapseJD">收起空白 JD</button>
+          </div>
+          <textarea id="jobMulti1" class="multi-jd-item" rows="4" placeholder="JD #1（选填）"></textarea>
+          <textarea id="jobMulti2" class="multi-jd-item" rows="4" placeholder="JD #2（选填）" hidden></textarea>
+          <textarea id="jobMulti3" class="multi-jd-item" rows="4" placeholder="JD #3（选填）" hidden></textarea>
+          <textarea id="jobMulti4" class="multi-jd-item" rows="4" placeholder="JD #4（选填）" hidden></textarea>
+          <textarea id="jobMulti5" class="multi-jd-item" rows="4" placeholder="JD #5（选填）" hidden></textarea>
+        </label>
+      </section>
+
+      <section class="panel output full-width" id="outSection" aria-labelledby="out-heading">
+        <div class="out-head">
+          <h2 id="out-heading" class="section-heading">结果</h2>
+          <div class="out-actions">
+            <button type="button" class="btn btn-secondary btn-compact" id="btnExportDocx">
+              导出 Word (.docx)
+            </button>
+            <button type="button" class="btn btn-ghost btn-compact" id="btnPrint">打印 / PDF</button>
+          </div>
+        </div>
+        <div id="output" class="output" role="region" aria-label="模型输出">结果将显示在这里…</div>
+      </section>
+
+      <section class="panel full-width" aria-labelledby="history-heading">
+        <div class="out-head">
+          <h2 id="history-heading" class="section-heading">最近记录</h2>
+          <div class="out-actions">
+            <button type="button" class="btn btn-ghost btn-compact" id="btnHistoryClear">清空记录</button>
+          </div>
+        </div>
+        <div id="historyList" class="history-list" role="region" aria-label="最近任务记录">
+          暂无记录。完成一次分析后会自动保存最近结果。
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap foot-inner">
+        <p class="foot-line">
+          本地运行：<code>run.ps1</code> 或
+          <code>uvicorn main:app --host 0.0.0.0 --port 8000</code>
+        </p>
+        <p class="foot-line" id="footDocs">
+          <a href="/docs" target="_blank" rel="noopener">API 文档</a>
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        if (location.protocol !== "file:") return;
+        var m = document.createElement("div");
+        m.setAttribute("role", "alert");
+        m.className = "file-protocol-warning";
+        m.textContent =
+          "当前是从磁盘直接打开的页面，脚本无法正确加载。请运行 run.ps1 或通过 http://127.0.0.1:8000/ 访问。";
+        document.body.insertBefore(m, document.body.firstChild);
+      })();
+    </script>
+    <script src="/static/app.js?v=2026-04-20-pixel-1"></script>
+  </body>
+</html>

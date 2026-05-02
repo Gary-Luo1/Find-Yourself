@@ -1,0 +1,16 @@
+# 示例：仅本机回环暴露应用端口，前面由宿主机 Nginx/Caddy 终止 TLS 并反代。
+# 复制 .env.example 为 .env 并填写 OPENAI_* 与下方相关项。
+
+services:
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRUST_CLIENT_LLM: "false"
+      EXPOSE_API_DOCS: "false"
+      # 与对外访问的 https 域名一致，逗号分隔多个
+      CORS_ALLOW_ORIGINS: "https://your-domain.example"
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped

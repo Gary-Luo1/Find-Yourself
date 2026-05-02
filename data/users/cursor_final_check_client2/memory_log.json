@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": 1777644567,
+    "session_id": "cursor_final_check_session2",
+    "current_page": "chat",
+    "scene": "onboarding",
+    "user_message": "???????????????JSON???????",
+    "assistant_reply": "你好！我是你的AI求职伙伴，会一步步陪你梳理方向、提升准备度。我看到你打了一些问号，是不是还不确定怎么开始？别担心，轻松聊聊就好～ 你可以先随便告诉我，你现在是哪个学校、什么专业，或者有什么初步的求职想法吗？",
+    "should_update": false,
+    "memory_action": {
+      "should_update": false,
+      "profile_updates": [],
+      "state_updates": []
+    },
+    "profile_updates": [],
+    "state_updates": [],
+    "message_id": "msg_2b6ed1e4ad6f49429b7ce4362521ff90"
+  }
+]

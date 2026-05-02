@@ -1,0 +1,37 @@
+[
+  {
+    "timestamp": 1777645644,
+    "session_id": "s_1777638616867",
+    "current_page": "chat",
+    "scene": "onboarding",
+    "user_message": "你好",
+    "assistant_reply": "你好！我是你的AI求职伴侣，很高兴认识你🌟 我会一步步帮你梳理求职方向、挖掘优势、准备面试。首先，我想快速了解一下你的情况：你目前在读吗？预计什么时候毕业，想找实习还是全职工作呢？",
+    "should_update": true,
+    "memory_action": {
+      "should_update": true,
+      "profile_updates": [],
+      "state_updates": [
+        {
+          "field": "emotion_state.current",
+          "value": "neutral"
+        },
+        {
+          "field": "current_stage",
+          "value": "onboarding"
+        }
+      ]
+    },
+    "profile_updates": [],
+    "state_updates": [
+      {
+        "field": "emotion_state.current",
+        "value": "neutral"
+      },
+      {
+        "field": "current_stage",
+        "value": "onboarding"
+      }
+    ],
+    "message_id": "msg_2c794c97306c488397dc4bd604f541c4"
+  }
+]

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fbfbfd" />
+    <title>Find Yourself · 行动与复盘</title>
+    <link rel="stylesheet" href="/static/styles.css?v=2026-05-02-journey" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主内容</a>
+    <header class="nav-shell">
+      <nav class="nav wrap" aria-label="主导航">
+        <a class="nav-brand" href="/" aria-label="返回首页"><span class="nav-logo" aria-hidden="true"></span><span class="nav-title">Find Yourself</span></a>
+        <div class="nav-actions" role="tablist" aria-label="流程导航">
+          <a class="nav-tab" data-step="chat" href="/chat.html">聊聊</a>
+          <a class="nav-tab" data-step="resume" href="/resume.html">简历输入</a>
+          <a class="nav-tab" data-step="analyze" href="/analyze.html">分析与优化</a>
+          <a class="nav-tab" data-step="journey" href="/journey.html">行动与复盘</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main" class="wrap main-layout page-shell">
+      <section class="panel module-card module-highlight full-width module-anchor" id="journey-module">
+        <div class="module-title-row">
+          <div>
+            <span class="module-tag alt">步骤 5</span>
+            <h1 class="section-heading">行动与复盘工作台</h1>
+            <p class="module-lead">把建议拆成今天要做的事，做完后快速复盘，再自动生成下一步。</p>
+          </div>
+        </div>
+        <div id="activeLlmConfig" class="result-summary" role="note" aria-live="polite"></div>
+        <div class="journey-grid">
+          <section class="journey-card journey-card--focus">
+            <div class="journey-card__head">
+              <div>
+                <span class="journey-badge">今日行动</span>
+                <h2>今天最重要的 3 件事</h2>
+                <p>每件事尽量 10～30 分钟内能开始。</p>
+              </div>
+            </div>
+            <div class="journey-add-row">
+              <input id="journeyInput" type="text" placeholder="例如：补一版产品岗简历、投递 3 个岗位、整理 1 次面试复盘" />
+              <button type="button" class="btn btn-primary" id="btnJourneyAdd">添加</button>
+            </div>
+            <div id="journeyBoard" class="journey-list" role="region" aria-label="今日行动看板"></div>
+          </section>
+
+          <section class="journey-card">
+            <div class="journey-card__head">
+              <div>
+                <span class="journey-badge alt">阶段进度</span>
+                <h2>我现在在哪一步</h2>
+                <p>系统会根据你的状态帮你判断当前阶段。</p>
+              </div>
+            </div>
+            <div id="journeyStage" class="journey-stage"></div>
+          </section>
+
+          <section class="journey-card">
+            <div class="journey-card__head">
+              <div>
+                <span class="journey-badge sky">复盘记录</span>
+                <h2>今天的复盘</h2>
+                <p>先写阻碍、收获和明天优先级。</p>
+              </div>
+            </div>
+            <label class="field"><span class="field-label">今天遇到的阻碍</span><textarea id="journalBlockers" rows="3" placeholder="例如：不知道怎么改项目经历，面试被追问时有点慌。"></textarea></label>
+            <label class="field"><span class="field-label">今天学到的东西</span><textarea id="journalLearned" rows="3" placeholder="例如：岗位匹配度比我想的更重要，问题要准备证据链。"></textarea></label>
+            <label class="field"><span class="field-label">明天最优先 1-3 件事</span><textarea id="journalNext" rows="3" placeholder="例如：1. 改项目描述 2. 投递 3 家 3. 练 3 个面试问题"></textarea></label>
+            <div class="journey-actions">
+              <button type="button" class="btn btn-secondary" id="btnJournalSave">保存复盘</button>
+              <button type="button" class="btn btn-ghost" id="btnJournalClear">清空复盘</button>
+            </div>
+          </section>
+
+          <section class="journey-card journey-card--wide">
+            <div class="journey-card__head">
+              <div>
+                <span class="journey-badge mint">最近记录</span>
+                <h2>持续推进的痕迹</h2>
+                <p>记录最近的行动、反馈和下一步建议。</p>
+              </div>
+              <div class="journey-actions">
+                <button type="button" class="btn btn-secondary" id="btnJourneyClear">清空行动</button>
+                <button type="button" class="btn btn-ghost" id="btnJournalReset">清空记录</button>
+              </div>
+            </div>
+            <div id="weeklyReview" class="journey-summary" role="note"></div>
+            <div id="journalList" class="journey-history" role="region" aria-label="复盘日志记录"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app-state.js?v=2026-05-02-journey"></script><script src="/static/app-main.js?v=2026-05-02-journey"></script><script src="/static/app-helpers.js?v=2026-05-02-journey"></script><script src="/static/app-render.js?v=2026-05-02-journey"></script><script src="/static/app-api.js?v=2026-05-02-journey"></script><script src="/static/app-flow.js?v=2026-05-02-journey"></script><script src="/static/app.js?v=2026-05-02-journey"></script><script src="/static/app-init.js?v=2026-05-02-journey"></script>
+  </body>
+</html>
