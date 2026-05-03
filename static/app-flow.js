@@ -76,7 +76,7 @@ function bindFlowActions() {
   bindClick("btnSaveSettings", () => { setFlowStep("chat"); });
   bindClick("btnChatNext", () => { saveDraft(true); setFlowStep("resume"); });
   bindClick("btnChatFocusResume", () => setFlowStep("resume"));
-  bindClick("btnHeroStart", () => setFlowStep("chat"));
+  bindClick("btnHeroStart", () => { location.href = "/chat.html?open=settings"; });
   bindClick("btnHeroJourney", () => setFlowStep("journey"));
   bindClick("btnDemoFill", () => { fillDemoData(); setFlowStep("analyze"); });
   bindClick("btnDemoClear", () => { clearDemoData(); setFlowStep("chat"); });
@@ -90,6 +90,23 @@ function bindFlowActions() {
   bindClick("btnInterviewSim", async () => { if (!ensureReadyForAnalysis()) return; if (typeof runInterviewSim === "function") await runInterviewSim(); });
   bindClick("btnJourneyAdd", () => { addJourneyAction(); });
   bindClick("btnJourneyClear", () => { clearJourneyBoard(); });
+  bindClick("btnJourneyExport", () => { if (typeof exportJourneyCsv === "function") exportJourneyCsv(); });
+  bindClick("btnJourneyFilterClear", () => { if (typeof clearJourneyFilters === "function") clearJourneyFilters(); });
+  ["journeySearch", "journeyFilterStatus", "journeyFilterCompany"].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener("input", () => { if (typeof renderJourneyTable === "function") renderJourneyTable(); });
+    if (el) el.addEventListener("change", () => { if (typeof renderJourneyTable === "function") renderJourneyTable(); });
+  });
+  const journeyDate = $("journeyApplyDate");
+  if (journeyDate) {
+    const syncDateState = () => {
+      const wrap = journeyDate.closest(".journey-date-center");
+      if (wrap) wrap.classList.toggle("has-date", Boolean(journeyDate.value));
+    };
+    journeyDate.addEventListener("input", syncDateState);
+    journeyDate.addEventListener("change", syncDateState);
+    syncDateState();
+  }
   bindClick("btnJournalSave", () => { saveJournalEntry(); });
   bindClick("btnJournalClear", () => { clearJournal(); });
   bindClick("btnJournalReset", () => { clearJournal(); });

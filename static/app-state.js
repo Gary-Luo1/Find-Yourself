@@ -3,6 +3,8 @@ const LS = {
   base: "rm_base_url",
   model: "rm_model",
   rememberKey: "rm_remember_key",
+  apiBaseUrl: "rm_api_base_url_override",
+  llmMode: "rm_llm_mode",
 };
 const SS = {
   key: "rm_api_key_session",
@@ -28,9 +30,34 @@ function $(id) {
 }
 
 function getApiBaseUrl() {
+  const searchOverride = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("api_base_url") : "";
+  const storedOverride = localStorage.getItem(LS.apiBaseUrl) || "";
   const runtime = typeof window !== "undefined" ? window.__API_BASE_URL__ : "";
+  const sameOriginApi = typeof window !== "undefined" && window.location.hostname.endsWith("vercel.app") ? window.location.origin : "";
   const env = typeof process !== "undefined" && process.env ? process.env.API_BASE_URL : "";
-  return String(runtime || env || localStorage.getItem("rm_api_base_url_override") || "").trim().replace(/\/$/, "");
+  return String(searchOverride || storedOverride || runtime || env || sameOriginApi || "").trim().replace(/\/$/, "");
+}
+
+function setRuntimeApiBaseUrlFromMeta() {
+  if (typeof window === "undefined") return;
+  if (window.__API_BASE_URL__) return;
+  const meta = document.querySelector('meta[name="api-base-url"]');
+  const value = meta ? String(meta.getAttribute("content") || "").trim() : "";
+  if (value) window.__API_BASE_URL__ = value.replace(/\/$/, "");
+}
+
+setRuntimeApiBaseUrlFromMeta();
+
+function setApiBaseUrl(value) {
+  const next = String(value || "").trim().replace(/\/$/, "");
+  if (next) {
+    localStorage.setItem(LS.apiBaseUrl, next);
+    if (typeof window !== "undefined") window.__API_BASE_URL__ = next;
+  } else {
+    localStorage.removeItem(LS.apiBaseUrl);
+    if (typeof window !== "undefined") window.__API_BASE_URL__ = "";
+  }
+  return next;
 }
 
 function apiPath(path) {

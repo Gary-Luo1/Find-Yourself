@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#fbfbfd" />
-    <title>Find Yourself · 聊聊</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23656cf0'/%3E%3Ctext x='32' y='40' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif'%3EFY%3C/text%3E%3C/svg%3E" />
+    <title>Find Yourself · 陪聊</title>
     <link rel="stylesheet" href="/static/styles.css?v=2026-05-01-chatfix" />
   </head>
   <body>
@@ -13,10 +14,11 @@
       <nav class="nav wrap" aria-label="主导航">
         <a class="nav-brand" href="/" aria-label="返回首页"><span class="nav-logo" aria-hidden="true"></span><span class="nav-title">Find Yourself</span></a>
         <div class="nav-actions" role="tablist" aria-label="流程导航">
-          <a class="nav-tab" data-step="chat" href="/chat.html">聊聊</a>
-          <a class="nav-tab" data-step="resume" href="/resume.html">简历输入</a>
-          <a class="nav-tab" data-step="analyze" href="/analyze.html">分析与优化</a>
-          <a class="nav-tab" data-step="journey" href="/journey.html">行动与复盘</a>
+          <button type="button" class="nav-tab" data-step="settings" id="btnOpenSettings">模型配置</button>
+          <a class="nav-tab" data-step="chat" href="/chat.html">陪聊</a>
+          <a class="nav-tab" data-step="resume" href="/resume.html">陪看</a>
+          <a class="nav-tab" data-step="analyze" href="/analyze.html">陪想</a>
+          <a class="nav-tab" data-step="journey" href="/journey.html">陪记</a>
         </div>
       </nav>
     </header>
@@ -32,21 +34,16 @@
         </div>
 
         <div class="chat-frame chat-frame--minimal">
-          <section class="chat-panel chat-panel--minimal">
+          <section class="chat-panel chat-panel--minimal" style="grid-column: 1 / -1;">
             <div class="chat-topline">
               <div class="chat-topline__brand">
                 <span class="profile-avatar profile-avatar--assistant" aria-hidden="true">FY</span>
                 <div>
                   <div class="profile-name">Find Yourself</div>
-                  <div class="profile-subtitle">正在和你对话</div>
+                  <div class="profile-subtitle">对话区</div>
                 </div>
               </div>
               <div id="chatTyping" class="chat-typing is-hidden">正在输入中…</div>
-            </div>
-            <div class="chat-toolbar" aria-label="对话操作">
-              <button type="button" class="chat-toolbar__link" id="btnChatHistory">翻阅记录</button>
-              <button type="button" class="chat-toolbar__link" id="btnChatJumpLatest">回到最新</button>
-              <button type="button" class="chat-toolbar__link danger" id="btnChatClear">清空对话</button>
             </div>
             <div id="chatStatus" class="chat-status">在下方输入内容后按回车或点击发送。</div>
             <div id="chatThread" class="chat-thread" aria-live="polite"></div>
@@ -57,6 +54,7 @@
               </label>
               <div class="chat-compose-actions">
                 <button type="submit" class="btn btn-primary btn-priority" id="btnChatSend">发送</button>
+                <button type="button" class="btn btn-secondary" id="btnChatHistoryView">查看聊天记录</button>
               </div>
             </form>
           </section>
@@ -64,9 +62,10 @@
       </section>
     </main>
 
-    <dialog id="dlgSettings" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">模型设置</h2><p class="modal-lead">当前版本已将模型配置固定在后端，不再需要前端填写。</p><div class="result-summary">如果后续要调整模型参数，请直接修改服务端 `.env` 配置。</div><div class="modal-actions"><button type="button" class="btn btn-primary" id="btnSaveSettings">知道了</button></div></form></dialog>
+    <dialog id="dlgSettings" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">模型配置</h2><p class="modal-lead">请先确认后端模型和前端直连模型配置，再进入聊天。</p><label class="field"><span class="field-label">运行模式</span><select id="llmModeSelect"><option value="backend">后端模式（推荐）</option><option value="direct">前端直连模式</option></select></label><label class="field"><span class="field-label">后端 API 基础地址</span><input id="apiBaseUrlInput" type="text" placeholder="留空则使用当前站点或默认后端地址" /></label><label class="field"><span class="field-label">前端模型 API Key</span><input id="apiKeyInput" type="password" placeholder="前端直连模式时填写，后端模式可留空" /></label><label class="field"><span class="field-label">前端模型名称</span><input id="apiModelInput" type="text" placeholder="例如 gpt-4o-mini / deepseek-chat" /></label><label class="field"><span class="field-label">前端模型 Base URL</span><input id="apiModelBaseInput" type="text" placeholder="例如 https://api.openai.com/v1" /></label><div id="settingsHint" class="result-summary">后端模式适合正式使用；前端直连模式会把配置保存在本地并直接请求模型服务。</div><div id="settingsResult" class="result-summary" aria-live="polite">这里会显示测试结果。</div><div id="settingsPageResult" class="result-summary" aria-live="polite"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnTestBackendConnection">测试后端连接</button><button type="button" class="btn btn-secondary" id="btnTestDirectConnection">测试前端连接</button><button type="button" class="btn btn-secondary" id="btnResetApiBaseUrl">恢复默认</button><button type="button" class="btn btn-primary" id="btnSettingsDone">完成并进入聊天</button></div></form></dialog>
     <dialog id="dlgMemory" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">编辑我的求职画像</h2><p class="modal-lead">你可以补充、修改或清除系统记住的关键信息。</p><label class="field"><span class="field-label">已知稳定信息</span><textarea id="memoryStableFacts" rows="4"></textarea></label><label class="field"><span class="field-label">偏好 / 倾向</span><textarea id="memoryPreferences" rows="4"></textarea></label><label class="field"><span class="field-label">待确认问题</span><textarea id="memoryOpenQuestions" rows="4"></textarea></label><label class="field"><span class="field-label">画像摘要</span><textarea id="memorySummaryInput" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnMemoryClear">仅清空内容</button><button type="button" class="btn btn-primary" id="btnMemorySave">保存画像</button></div></form></dialog>
     <dialog id="dlgEmotion" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">说说心情</h2><p class="modal-lead">这里是一个安全的情绪出口。</p><label class="field"><span class="field-label">现在最想说的话</span><textarea id="emotionInput" rows="6"></textarea></label><label class="field"><span class="field-label">我想让系统记住的感受</span><textarea id="emotionTakeaway" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnEmotionClear">清空内容</button><button type="button" class="btn btn-primary" id="btnEmotionSave">记录并关掉</button></div></form></dialog>
-    <script src="/static/app-state.js?v=2026-05-01-chatfix"></script><script src="/static/app-main.js?v=2026-05-01-chatfix"></script><script src="/static/app-helpers.js?v=2026-05-01-chatfix"></script><script src="/static/app-render.js?v=2026-05-01-chatfix"></script><script src="/static/app-api.js?v=2026-05-01-chatfix"></script><script src="/static/app-flow.js?v=2026-05-01-chatfix"></script><script src="/static/app.js?v=2026-05-01-chatfix"></script><script src="/static/app-init.js?v=2026-05-01-chatfix"></script>
+    <dialog id="dlgChatHistory" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">聊天记录</h2><p class="modal-lead">本地记录 + 服务端摘要（如可用）</p><div id="chatHistoryContent" class="feature-output" style="max-height: 48vh; overflow-y: auto; white-space: pre-wrap;"></div><div class="modal-actions"><button type="button" class="btn btn-primary" id="btnCloseChatHistory">关闭</button></div></form></dialog>
+    <script src="/static/app-state.js?v=2026-05-01-chatfix"></script><script src="/static/app-helpers.js?v=2026-05-01-chatfix"></script><script src="/static/app-api.js?v=2026-05-03-opt"></script><script src="/static/app-render.js?v=2026-05-01-chatfix"></script><script src="/static/app-flow.js?v=2026-05-01-chatfix"></script><script src="/static/app-main.js?v=2026-05-01-chatfix"></script><script src="/static/app-chat.js?v=2026-05-01-chatfix"></script><script src="/static/app-journey.js?v=2026-05-01-chatfix"></script><script src="/static/app.js?v=2026-05-01-chatfix"></script><script src="/static/app-init.js?v=2026-05-03-settingsfix"></script><script src="/static/app-entry.js?v=2026-05-01-chatfix"></script>
   </body>
 </html>

@@ -1,3 +1,106 @@
+const FRONTEND_GLOBAL_ROLE_PROMPT = `你是 Find Yourself 产品内的 AI 求职伴侣。
+必须遵守：
+1) 保持求职伴侣角色，不退化为泛聊天机器人。
+2) 涉及分析、计划、记录时必须结构化输出；不得编造联网信息。
+3) 维护 current_stage（准备期/投递期/面试期/谈判期/已入职/维护期）。
+4) 语气专业、鼓励、可执行；不提供伪造经历建议。
+5) 重要内容使用标签：
+- 【档案更新】
+- 【策略建议】
+- 【待办提醒】
+- 【情感支持】
+6) 若无法完整表格，至少返回可解析 JSON，未知字段填 null。`;
+
+function getDirectModelConfig() {
+  return {
+    apiKey: String(localStorage.getItem(LS.key) || sessionStorage.getItem(SS.key) || "").trim(),
+    baseUrl: String(localStorage.getItem(LS.base) || "").trim().replace(/\/$/, ""),
+    model: String(localStorage.getItem(LS.model) || "").trim(),
+  };
+}
+
+function getSelectedLlmMode() {
+  const saved = String(localStorage.getItem(LS.llmMode) || "").trim();
+  if (saved) return saved === "direct" ? "direct" : "backend";
+  const hasDirectConfig = Boolean((localStorage.getItem(LS.key) || sessionStorage.getItem(SS.key) || "").trim() && (localStorage.getItem(LS.model) || "").trim() && (localStorage.getItem(LS.base) || "").trim());
+  return hasDirectConfig ? "direct" : "backend";
+}
+
+function isDirectMode() {
+  return getSelectedLlmMode() === "direct";
+}
+
+function getModelRequestHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  const { apiKey } = getDirectModelConfig();
+  if (isDirectMode() && apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  return headers;
+}
+
+function getModelRequestBody(body) {
+  const cfg = getDirectModelConfig();
+  if (!isDirectMode()) return body;
+  return {
+    ...body,
+    system_prompt: [FRONTEND_GLOBAL_ROLE_PROMPT, body && body.system_prompt ? String(body.system_prompt) : ""].filter(Boolean).join("\n\n"),
+    model: body.model || cfg.model,
+    api_key: cfg.apiKey,
+    base_url: cfg.baseUrl,
+    llm_mode: "direct",
+  };
+}
+
+function getEffectiveModelConfig() {
+  const cfg = getDirectModelConfig();
+  return isDirectMode()
+    ? { ...cfg, mode: "direct" }
+    : { apiKey: "", baseUrl: getApiBaseUrl(), model: String(localStorage.getItem(LS.model) || "").trim(), mode: "backend" };
+}
+
+function getModelModeLabel() {
+  return isDirectMode() ? "前端直连模式" : "后端模式";
+}
+
+function buildValidateLlmBody() {
+  const mode = getSelectedLlmMode();
+  const cfg = getDirectModelConfig();
+  return mode === "direct"
+    ? { llm_mode: "direct", api_key: cfg.apiKey, base_url: cfg.baseUrl, model: cfg.model }
+    : { llm_mode: "server" };
+}
+
+async function testDirectModelConnection() {
+  const cfg = getDirectModelConfig();
+  if (!cfg.apiKey || !cfg.baseUrl || !cfg.model) {
+    throw new Error("前端直连模式需要先填写 API Key、Base URL 和模型名称。");
+  }
+  const endpoint = cfg.baseUrl.endsWith("/v1") ? `${cfg.baseUrl}/chat/completions` : `${cfg.baseUrl}/v1/chat/completions`;
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: [
+        { role: "system", content: FRONTEND_GLOBAL_ROLE_PROMPT + "\n你当前任务是连通性检查，仅回复 pong。" },
+        { role: "user", content: "ping" },
+      ],
+      temperature: 0,
+    }),
+  });
+  const raw = await res.text();
+  let data = {};
+  try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
+  if (!res.ok) {
+    const detail = data.error?.message || data.detail || data.message || data.raw || `HTTP ${res.status}`;
+    throw new Error(detail);
+  }
+  const content = data?.choices?.[0]?.message?.content || data?.output_text || data?.text || raw || "";
+  return { ok: true, valid: true, mode: "direct", ping: String(content).slice(0, 120), model: cfg.model };
+}
+
 async function postJson(path, body) {
   const controller = new AbortController();
   activeController = controller;
@@ -5,8 +108,8 @@ async function postJson(path, body) {
   try {
     const res = await fetch(apiPath(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: getModelRequestHeaders(),
+      body: JSON.stringify(getModelRequestBody(body)),
       signal: controller.signal,
     });
     const rawText = await res.text();
@@ -28,7 +131,8 @@ async function postJson(path, body) {
 }
 
 async function validateLLMConfig() {
-  return postJson("/api/v1/validate-llm", {});
+  if (isDirectMode()) return testDirectModelConnection();
+  return postJson("/api/v1/validate-llm", buildValidateLlmBody());
 }
 
 async function streamPostJson(path, body, { onEvent, onDone, onError } = {}) {
@@ -38,8 +142,8 @@ async function streamPostJson(path, body, { onEvent, onDone, onError } = {}) {
   try {
     const res = await fetch(apiPath(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify(body),
+      headers: { ...getModelRequestHeaders(), Accept: "text/event-stream" },
+      body: JSON.stringify(getModelRequestBody(body)),
       signal: controller.signal,
     });
     const contentType = String(res.headers.get("content-type") || "");

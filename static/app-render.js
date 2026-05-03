@@ -122,7 +122,7 @@ function prettyPrintForDisplay(obj, depth = 0) {
 function formatModelPlainText(obj) {
   if (obj == null) return "";
   if (typeof obj !== "object") return String(obj);
-  if (obj.career_orientation && obj.action_plan && obj.market_reference) {
+  if (obj.career_orientation && obj.action_plan) {
     const parts = ["【职业方向诊断】"];
     if (Array.isArray(obj.career_orientation.best_fit_roles) && obj.career_orientation.best_fit_roles.length) {
       parts.push("", "适合方向：", listAsText(obj.career_orientation.best_fit_roles, true));
@@ -174,10 +174,23 @@ function formatModelPlainText(obj) {
     const parts = ["【润色后的简历】", normalizeVisibleEscapes(String(obj.tailored_resume || ""))];
     if (obj.changes_summary) parts.push("", "【改动摘要】", normalizeVisibleEscapes(String(obj.changes_summary)));
     if (Array.isArray(obj.evidence_changes) && obj.evidence_changes.length) {
+      const riskLabel = (value) => {
+        const raw = String(value || "").trim().toLowerCase();
+        const map = {
+          critical: "关键修改",
+          important: "重要修改",
+          polish: "润色优化",
+          high: "高优先级",
+          medium: "中优先级",
+          low: "低优先级",
+          unknown: "未标注",
+        };
+        return map[raw] || String(value || "未标注");
+      };
       parts.push("", "【证据链改写】");
       obj.evidence_changes.forEach((x, i) => {
         parts.push(
-          `${i + 1}. (${String(x.risk_level || "unknown")})`,
+          `${i + 1}. (${riskLabel(x.risk_level)})`,
           `原句：${normalizeVisibleEscapes(String(x.original_snippet || ""))}`,
           `建议：${normalizeVisibleEscapes(String(x.suggested_snippet || ""))}`,
           `理由：${normalizeVisibleEscapes(String(x.reason || ""))}`,
@@ -233,6 +246,16 @@ function formatModelPlainText(obj) {
     const parts = [];
     if (obj.match_score != null) parts.push(`匹配度：${obj.match_score} / 100`);
     if (obj.summary) parts.push("", "【总结】", String(obj.summary));
+    if (Array.isArray(obj.dimension_scores) && obj.dimension_scores.length) {
+      parts.push("", "【维度评分明细】");
+      obj.dimension_scores.forEach((d, i) => {
+        parts.push(
+          `${i + 1}. ${String(d.dimension || "未命名维度")}（权重: ${d.weight ?? "-"}，得分: ${d.score ?? "-"}）`,
+          `依据：${String(d.evidence || "-")}`,
+          ""
+        );
+      });
+    }
     if (Array.isArray(obj.matched_keywords) && obj.matched_keywords.length) {
       parts.push("", "【已覆盖关键词】", listAsText(obj.matched_keywords, false));
     }

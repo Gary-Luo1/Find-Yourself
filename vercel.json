@@ -1,9 +1,23 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://YOUR_RENDER_DOMAIN.onrender.com/api/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "https://find-yourself-api.onrender.com/api/:path*" },
+    { "source": "/static/:path*", "destination": "/static/:path*" },
+    { "source": "/chat", "destination": "/chat.html" },
+    { "source": "/resume", "destination": "/resume.html" },
+    { "source": "/analyze", "destination": "/analyze.html" },
+    { "source": "/journey", "destination": "/journey.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/", "destination": "/index.html" }
   ],
-  "env": {
-    "API_BASE_URL": "https://YOUR_RENDER_DOMAIN.onrender.com"
-  }
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
+  ]
 }

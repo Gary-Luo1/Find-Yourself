@@ -22,7 +22,9 @@ async def chat_completion(
     base_url: str,
     model: str,
     messages: list[dict[str, str]],
-    temperature: float = 0.35,
+    temperature: float = 0.0,
+    top_p: float = 1.0,
+    seed: int = 42,
     response_format_json: bool = False,
     timeout_s: float = 120.0,
 ) -> str:
@@ -37,6 +39,8 @@ async def chat_completion(
             "model": model,
             "messages": messages,
             "temperature": temperature,
+            "top_p": top_p,
+            "seed": seed,
             "stream": False,
         }
         if include_response_format:
@@ -86,7 +90,9 @@ async def chat_completion_stream(
     base_url: str,
     model: str,
     messages: list[dict[str, str]],
-    temperature: float = 0.35,
+    temperature: float = 0.0,
+    top_p: float = 1.0,
+    seed: int = 42,
     timeout_s: float = 120.0,
 ):
     url = _normalize_openai_base(base_url) + "/chat/completions"
@@ -98,6 +104,8 @@ async def chat_completion_stream(
         "model": model,
         "messages": messages,
         "temperature": temperature,
+        "top_p": top_p,
+        "seed": seed,
         "stream": True,
     }
 

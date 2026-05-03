@@ -5,10 +5,17 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
     envVars:
       - key: APP_ENV
         value: production
       - key: CORS_ALLOW_ORIGINS
-        value: https://YOUR_VERCEL_DOMAIN.vercel.app
+        value: https://YOUR_VERCEL_DOMAIN.vercel.app,https://YOUR_CUSTOM_DOMAIN.com,http://127.0.0.1:8000,http://localhost:8000
       - key: EXPOSE_API_DOCS
         value: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini

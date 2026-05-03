@@ -10,12 +10,15 @@ Current product focus:
 
 from __future__ import annotations
 
+import hashlib
+import hashlib
 import json
 import logging
 import os
 import re
 import sqlite3
 import time
+import hashlib
 from json import JSONDecodeError
 from pathlib import Path
 from threading import Lock
@@ -143,7 +146,19 @@ if STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-_PAGE_FILES = {"/": "index.html", "/chat.html": "chat.html", "/resume.html": "resume.html", "/analyze.html": "analyze.html", "/journey.html": "journey.html"}
+_PAGE_FILES = {
+    "/": "index.html",
+    "/chat": "chat.html",
+    "/chat.html": "chat.html",
+    "/settings": "settings.html",
+    "/settings.html": "settings.html",
+    "/resume": "resume.html",
+    "/resume.html": "resume.html",
+    "/analyze": "analyze.html",
+    "/analyze.html": "analyze.html",
+    "/journey": "journey.html",
+    "/journey.html": "journey.html",
+}
 
 
 def _render_domain_host() -> str:
@@ -159,6 +174,19 @@ async def index():
     return FileResponse(page)
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    favicon_path = STATIC_DIR / "favicon.ico"
+    if favicon_path.is_file():
+        return FileResponse(favicon_path)
+    return Response(status_code=204)
+
+
+@app.get("/api/v1/health")
+async def health_check():
+    return {"ok": True, "service": "find-yourself-api"}
+
+
 @app.get("/{page_name}")
 async def ui_pages(page_name: str):
     page = f"/{page_name}"
@@ -171,10 +199,36 @@ async def ui_pages(page_name: str):
 
 
 class ValidateLLMBody(BaseModel):
-    pass
+    llm_mode: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+    model: str | None = None
 
 
-def resolve_llm(_: object | None = None) -> tuple[str, str, str]:
+def _normalize_llm_mode(value: str | None) -> str:
+    mode = (value or "").strip().lower()
+    if mode in {"direct", "byok"}:
+        return mode
+    return "server"
+
+
+def _resolve_llm_direct(body: ValidateLLMBody) -> tuple[str, str, str]:
+    key = (body.api_key or "").strip()
+    base = (body.base_url or "").strip()
+    model = (body.model or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="前端直连模式需要提供 API Key。")
+    if not base:
+        raise HTTPException(status_code=400, detail="前端直连模式需要提供 Base URL。")
+    if not model:
+        raise HTTPException(status_code=400, detail="前端直连模式需要提供模型名称。")
+    allowed = [u.strip().rstrip("/") for u in (settings.allowed_client_base_urls or "").split(",") if u.strip()]
+    if allowed and base.rstrip("/") not in allowed:
+        raise HTTPException(status_code=400, detail="当前 Base URL 不在允许列表中。")
+    return key, base, model
+
+
+def _resolve_llm_server() -> tuple[str, str, str]:
     key = (settings.openai_api_key or "").strip()
     if not key:
         raise HTTPException(status_code=500, detail="服务端未配置模型密钥。")
@@ -185,9 +239,17 @@ def resolve_llm(_: object | None = None) -> tuple[str, str, str]:
     return key, base, model
 
 
+def resolve_llm(body: ValidateLLMBody | None = None) -> tuple[str, str, str]:
+    payload = body or ValidateLLMBody()
+    mode = _normalize_llm_mode(getattr(payload, "llm_mode", None) or settings.llm_mode)
+    if mode in {"direct", "byok"}:
+        return _resolve_llm_direct(payload)
+    return _resolve_llm_server()
+
+
 @app.post("/api/v1/validate-llm")
 async def validate_llm(body: ValidateLLMBody):
-    key, base, model = resolve_llm(None)
+    key, base, model = resolve_llm(body)
     try:
         ping = await chat_completion(
             api_key=key,
@@ -262,16 +324,38 @@ class ChatBody(BaseModel):
     memory: dict | None = None
 
 
+GLOBAL_ROLE_PROMPT = """
+你是 Find Yourself 产品内的 AI 求职伴侣。
+
+必须遵守：
+1) 保持求职伴侣角色，不退化为泛聊天机器人。
+2) 涉及分析、计划、记录时必须结构化输出；不得编造联网信息。
+3) 维护 current_stage（准备期/投递期/面试期/谈判期/已入职/维护期）。
+4) 语气专业、鼓励、可执行；不提供伪造经历建议。
+5) 重要内容使用标签：
+   - 【档案更新】
+   - 【策略建议】
+   - 【待办提醒】
+   - 【情感支持】
+6) 若无法完整表格，至少返回可解析 JSON，未知字段填 null。
+""".strip()
+
+
+CAREER_PROMPT = GLOBAL_ROLE_PROMPT + "\n\n# Role: 职业方向与行动计划分析师\n你是职业发展顾问。基于用户提供的聊天内容、简历文本、JD文本进行分析。\n\n必须遵守：\n1) 仅基于输入，不引入外部假设；信息不足写“需补充：xxx”。\n2) 相同输入输出一致。\n3) 禁止空洞建议，建议必须可执行。\n4) 仅输出 JSON，不输出 markdown 或其他解释。\n\n工作步骤：\n- 提取诉求、简历能力证据、JD要求。\n- 评估匹配点与差距。\n- 输出方向判断与行动计划。\n\nJSON schema 严格为：\n{career_orientation:{best_fit_roles:[], why_fit:[], current_capabilities:[], capability_gaps:[], confidence:''}, action_plan:{now:[], next_2_weeks:[], job_search_strategy:[]}, emotional_support:{validation:'', vent_prompt:[]}, summary:''}\n\n字段要求：\n- 上述所有顶层字段必须存在。\n- best_fit_roles/why_fit/current_capabilities/capability_gaps/now/next_2_weeks/job_search_strategy/vent_prompt 必须是字符串数组，且每个数组至少 1 项。\n- confidence 只能是“高/中/低”。\n- summary 必须同时包含方向结论与主要风险。\n"
+
+ANALYZE_PROMPT = GLOBAL_ROLE_PROMPT + "\n\n# Role: 岗位匹配分析专家\n你是专业招聘与人力资源分析专家，目标是对简历与JD进行可复现的结构化匹配分析。\n\n必须遵守：\n1) 标准化预处理：统一大小写、去格式噪声、同义词归一（如 Python/python/Py）。\n2) 固定顺序评估：教育→经验→技能→项目→其他。\n3) 证据锚定：每个结论需可由输入文本回溯，禁止外部假设。\n4) 一致性：相同输入必须同结论、同建议、同分数。\n5) 禁止随机因素与外部查询。\n\n工作流程：\n- 步骤1：JD要素提取（必备/优选）并给出权重。\n- 步骤2：简历同维度提取并映射。\n- 步骤3：逐项匹配与评分。\n- 步骤4：输出总分、依据与改进建议。\n\n仅输出 JSON，禁止输出 markdown 或额外解释。\nJSON schema 必须严格为：\n{match_score:0, summary:'', dimension_scores:[{dimension:'', weight:0, score:0, evidence:''}], matched_keywords:[], missing_keywords:[], suggestions:[], consistency_note:''}\n\n字段要求：\n- match_score 为 0~100 数值，保留 1 位小数\n- dimension_scores 为数组，包含教育/经验/技能/项目/其他\n- 每项 evidence 使用格式：JD要求：xxx | 简历依据：xxx | 匹配判定：xxx\n- matched_keywords/missing_keywords/suggestions 为字符串数组\n- consistency_note 写明版本与可复现声明（如：synonym_dict_v1, weight_model_v1）\n- 信息不足时在 suggestions 写入“需补充：xxx”\n"
+
+
 def _system_prompt(kind: str) -> str:
     prompts = {
-        "career": "你是资深职业顾问。输出 JSON：{career_orientation:{best_fit_roles:[], why_fit:[], current_capabilities:[], capability_gaps:[], confidence:''}, action_plan:{now:[], next_2_weeks:[], job_search_strategy:[]}, emotional_support:{validation:'', vent_prompt:[]}, summary:''}。内容要简洁、具体、可执行。",
-        "analyze": "你是资深简历顾问。输出 JSON：{match_score:0, summary:'', matched_keywords:[], missing_keywords:[], suggestions:[]}。",
-        "tailor": "你是资深简历改写专家。输出 JSON：{tailored_resume:'', changes_summary:'', evidence_changes:[{original_snippet:'', suggested_snippet:'', reason:'', risk_level:''}] }。",
-        "cover": "你是资深求职信撰写专家。输出 JSON：{cover_letter:''}。",
-        "interview": "你是资深面试官。输出 JSON：{questions:[{category:'', question:'', intent:'', answer_framework:[], follow_ups:[]}], weakness_alerts:[], prep_plan_24h:[]}。",
-        "chat_onboarding": "你是面向应届生求职场景的 AI 求职伴侣，正在进行首页 onboarding。你的目标是通过少量开放式问题逐步建立用户的第一印象。请输出 JSON：{reply:'', summary:'', follow_up_question:'', memory_action:{should_update:true, profile_updates:[], state_updates:[]}, user_state:{emotion:'', stage:''}}。注意：reply 字段必须只包含给用户看的自然语言，不要输出 JSON、代码块或字段名。",
-        "chat_scene": "你是面向应届生求职场景的 AI 求职伴侣，正在一个具体功能页面中与用户对话。请结合当前页面上下文、用户画像和历史状态回答。请输出 JSON：{reply:'', summary:'', follow_up_question:'', memory_action:{should_update:true, profile_updates:[], state_updates:[]}, user_state:{emotion:'', stage:''}}。注意：reply 字段必须只包含给用户看的自然语言，不要输出 JSON、代码块或字段名。",
-        "chat_memory": "你是记忆抽取器。请从本轮聊天中抽取适合长期记忆的信息。输出 JSON：{should_update_memory:true, new_profile_items:[], new_state_items:[], updated_items:[], do_not_store:[], needs_clarification:false}。",
+        "career": CAREER_PROMPT,
+        "analyze": ANALYZE_PROMPT,
+        "tailor": GLOBAL_ROLE_PROMPT + "\n\n# Role: 简历优化策略师\n\n## Profile\n- language: 中文/English（根据用户输入自动适配）\n- description: 专业的简历诊断与优化专家，基于聊天记录、JD、原始简历及前序分析结果进行多维交叉分析并给出可执行改写方案。\n- background: 具备人力资源管理、职业规划咨询、ATS筛选机制与企业用人标准复合背景。\n- personality: 严谨细致、逻辑缜密、客观专业、注重证据链完整性。\n- expertise: 简历内容诊断、JD关键词匹配、职业叙事构建、招聘心理学应用、多源信息整合。\n\n## Rules\n1) 分析依据透明化：每条建议必须说明来自聊天记录/JD/前序分析/原简历的依据。\n2) 问题定位精确：指出原文缺陷（模糊、被动、缺量化、相关性弱等）。\n3) 修改建议结构化：每条建议必须包含“原文定位/修改方案/多维依据/效果预期”。\n4) 优先级标注：关键修改（初筛）、重要修改（面试率）、润色修改（阅读体验）。\n5) 真实性约束：不得虚构经历或夸大成果，仅做表达重构。\n6) 匹配度诚实：客观指出差距并提供弥补策略。\n\n## Workflow\n- 步骤1：信息交叉映射（JD要求↔简历内容↔聊天诉求↔前序分析结论）。\n- 步骤2：差距诊断与策略制定（ATS/HR/用人部门三层视角）。\n- 步骤3：逐模块输出可执行改写建议（总结/经历/项目/技能）。\n\n## Output Constraint（系统兼容）\n仅输出 JSON，不输出 markdown、解释文本或代码块。\nJSON schema 严格为：\n{tailored_resume:'', changes_summary:'', evidence_changes:[{original_snippet:'', suggested_snippet:'', reason:'', risk_level:''}]}\n\n字段要求：\n- tailored_resume：输出完整可直接替换的简历文本。\n- changes_summary：简要总结本次改写策略。\n- evidence_changes：数组中每项必须体现“原文定位/修改方案/多维依据/效果预期”。\n- risk_level 只能使用：critical / important / polish。\n- 信息不足时，在 reason 中明确写“需补充：xxx”。\n\n## Initialization\n作为简历优化策略师，你必须遵守上述Rules，按照Workflows执行任务。\n" ,
+        "cover": GLOBAL_ROLE_PROMPT + "\n\n任务：求职信。仅输出 JSON：{cover_letter:''}",
+        "interview": GLOBAL_ROLE_PROMPT + "\n\n# Role: 面试模拟专家\n\n## Profile\n- language: 中文\n- description: 你是一位资深的人力资源专家与面试教练，擅长根据候选人的简历、目标职位JD以及前期分析，设计高度针对性和实战性的面试模拟题目，并提供专业回答策略。\n- background: 深谙企业面试流程与评估标准，熟悉行为面试法（BEI）与胜任力评估。\n- personality: 专业严谨、洞察敏锐、富有同理心，注重实战效果与逻辑严密。\n- expertise: 人才评估、行为面试、情境面试、简历深度解析、JD精准对标、回答话术优化。\n\n## Rules\n1) 严格基于输入：仅依据简历、JD和前序分析，不得脱离上下文生成泛化问题。\n2) 覆盖维度：题目需覆盖专业能力、项目经验、行为素质、文化匹配、职业规划。\n3) 输出先题后答：先给题目清单，再给解析与示例。\n4) 避免通用模板：不得使用泛泛问题，必须体现对简历细节的定制追问。\n5) 真实可执行：示例回答要具体，包含动作与结果，避免空泛描述。\n\n## Output Constraint（系统兼容）\n仅输出 JSON，不输出 markdown、解释文本或代码块。\nJSON schema 严格为：\n{questions:[{category:'', question:'', intent:'', answer_framework:[], follow_ups:[]}], weakness_alerts:[], prep_plan_24h:[]}\n\n字段要求：\n- questions 长度必须为 10。\n- 每个 question 必须包含 category/question/intent/answer_framework/follow_ups。\n- category 建议使用：专业能力/项目经验/行为素质/文化匹配/职业规划/情景模拟/压力测试。\n- answer_framework 与 follow_ups 必须为字符串数组，且至少 2 条。\n- weakness_alerts 与 prep_plan_24h 必须为字符串数组，且至少 3 条。\n" + "\n\n补充约束：请在 questions 中通过 category 与 intent 体现“先题后答”的设计逻辑；详细答案解析与示例内容请压缩进 answer_framework 与 follow_ups 中，确保前端结构化渲染。" ,
+        "chat_onboarding": GLOBAL_ROLE_PROMPT + "\n\n任务：首页 onboarding 对话。仅输出 JSON：{reply:'', summary:'', follow_up_question:'', memory_action:{should_update:true, profile_updates:[], state_updates:[]}, user_state:{emotion:'', stage:''}}。reply 必须是给用户看的自然语言。",
+        "chat_scene": GLOBAL_ROLE_PROMPT + "\n\n任务：功能页上下文对话。仅输出 JSON：{reply:'', summary:'', follow_up_question:'', memory_action:{should_update:true, profile_updates:[], state_updates:[]}, user_state:{emotion:'', stage:''}}。reply 必须是给用户看的自然语言。",
+        "chat_memory": GLOBAL_ROLE_PROMPT + "\n\n任务：记忆抽取。仅输出 JSON：{should_update_memory:true, new_profile_items:[], new_state_items:[], updated_items:[], do_not_store:[], needs_clarification:false}",
     }
     return prompts.get(kind, prompts["chat_scene"])
 
@@ -304,15 +388,38 @@ def _safe_docx_basename(filename: str) -> str:
     return raw
 
 
-async def _llm_json(kind: str, user_prompt: str) -> dict:
-    key, base, model = resolve_llm(None)
+_DETERMINISTIC_CACHE: dict[str, dict] = {}
+
+
+def _is_structured_result_valid(kind: str, parsed: dict) -> bool:
+    if not isinstance(parsed, dict):
+        return False
+    if kind == "career":
+        required = {"career_orientation", "action_plan", "emotional_support", "summary"}
+        return required.issubset(set(parsed.keys()))
+    if kind == "analyze":
+        required = {"match_score", "summary", "matched_keywords", "missing_keywords", "suggestions"}
+        return required.issubset(set(parsed.keys()))
+    return True
+
+
+async def _llm_json(kind: str, user_prompt: str, body: object | None = None) -> dict:
+    key, base, model = resolve_llm(body if isinstance(body, ValidateLLMBody) else None)
+    system_prompt = _system_prompt(kind)
+    cache_key = hashlib.sha256(f"{kind}\n{model}\n{base}\n{system_prompt}\n{user_prompt}".encode("utf-8")).hexdigest()
+    if cache_key in _DETERMINISTIC_CACHE:
+        cached = _DETERMINISTIC_CACHE[cache_key]
+        if _is_structured_result_valid(kind, cached):
+            return cached
+        # 兼容历史脏缓存：若旧缓存结构不完整，丢弃并重新调用模型
+        _DETERMINISTIC_CACHE.pop(cache_key, None)
     try:
         text = await chat_completion(
             api_key=key,
             base_url=base,
             model=model,
             messages=[
-                {"role": "system", "content": _system_prompt(kind)},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             response_format_json=True,
@@ -329,9 +436,43 @@ async def _llm_json(kind: str, user_prompt: str) -> dict:
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail="无法连接模型服务，请检查网络或 Base URL。") from e
     try:
-        return parse_json_from_llm(text)
+        parsed = parse_json_from_llm(text)
     except Exception:
-        return {"reply": text, "summary": text[:120]}
+        parsed = {"reply": text, "summary": text[:120]}
+
+    if not _is_structured_result_valid(kind, parsed):
+        # 结构不完整时不缓存，直接回退到最小兼容结构，避免前端只显示 summary
+        if kind == "career":
+            parsed = {
+                "career_orientation": {
+                    "best_fit_roles": ["需补充：目标岗位方向"],
+                    "why_fit": ["需补充：更完整的简历与目标信息"],
+                    "current_capabilities": ["需补充：核心能力证据"],
+                    "capability_gaps": ["需补充：岗位要求与现状差距"],
+                    "confidence": "低",
+                },
+                "action_plan": {
+                    "now": ["需补充：提供更完整简历与JD后重试"],
+                    "next_2_weeks": ["需补充：明确目标岗位与城市范围"],
+                    "job_search_strategy": ["需补充：明确投递渠道与节奏"],
+                },
+                "emotional_support": {
+                    "validation": "你已经在积极推进，这一步是为了拿到更准确的方向判断。",
+                    "vent_prompt": ["最近求职中最让你焦虑的一件事是什么？"],
+                },
+                "summary": str(parsed.get("summary") or "信息不足，已回退为结构化占位结果，请补充信息后重试。"),
+            }
+        elif kind == "analyze":
+            parsed = {
+                "match_score": 0,
+                "summary": str(parsed.get("summary") or "返回结构不完整，已回退基础结构。"),
+                "matched_keywords": [],
+                "missing_keywords": ["需补充：完整JD与简历文本"],
+                "suggestions": ["需补充：请完善输入后重试分析"],
+            }
+
+    _DETERMINISTIC_CACHE[cache_key] = parsed
+    return parsed
 
 
 async def _chat_json(kind: str, system_prompt: str, user_prompt: str) -> dict:
@@ -364,14 +505,10 @@ async def _chat_json(kind: str, system_prompt: str, user_prompt: str) -> dict:
         return {"reply": text, "summary": text[:120]}
 
 
-def _body_llm(body: BaseModel | dict | None) -> LLMOverrides | None:
-    if body is None:
-        return None
-    if isinstance(body, dict):
-        raw = body.get("llm")
-        return LLMOverrides(**raw) if isinstance(raw, dict) else None
-    raw = getattr(body, "llm", None)
-    return raw if isinstance(raw, LLMOverrides) else None
+def _body_llm(body: BaseModel | dict | None):
+    # 保留兼容入口：当前版本未启用 per-request LLM override
+    # 早期实现依赖 LLMOverrides，但该类型已移除；这里统一返回 None，避免运行时 NameError。
+    return None
 
 
 def _memory_dir(client_id: str) -> Path:
@@ -752,10 +889,17 @@ async def interview_simulate(body: dict):
 
 @app.get("/api/v1/client-config")
 async def client_config():
+    mode = (settings.llm_mode or "server").strip().lower()
+    trust_client = mode == "byok" or (not mode and settings.trust_client_llm)
+    allowed = {
+        u.strip()
+        for u in (settings.allowed_client_base_urls or "").split(",")
+        if u.strip()
+    }
     return {
-        "llm_mode": _llm_mode(),
-        "trust_client_llm": _allow_client_llm(),
-        "allowed_client_base_urls": sorted(_allowed_client_bases()),
+        "llm_mode": mode or "server",
+        "trust_client_llm": trust_client,
+        "allowed_client_base_urls": sorted(allowed),
     }
 
 

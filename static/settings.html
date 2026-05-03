@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fbfbfd" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23656cf0'/%3E%3Ctext x='32' y='40' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif'%3EFY%3C/text%3E%3C/svg%3E" />
+    <title>Find Yourself · 模型配置</title>
+    <link rel="stylesheet" href="/static/styles.css?v=2026-05-03-settings" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主内容</a>
+    <header class="nav-shell">
+      <nav class="nav wrap" aria-label="主导航">
+        <a class="nav-brand" href="/" aria-label="返回首页"><span class="nav-logo" aria-hidden="true"></span><span class="nav-title">Find Yourself</span></a>
+      </nav>
+    </header>
+
+    <main id="main" class="wrap main-layout page-shell">
+      <section class="panel module-card module-highlight full-width module-anchor chat-shell">
+        <div class="module-title-row chat-title-row">
+          <div>
+            <span class="module-tag alt">模型配置</span>
+            <h1 class="section-heading">先确认模型连接，再开始聊天</h1>
+            <p class="module-lead">你可以分别测试后端大模型和前端直连大模型的连接是否正常。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="dlgSettings" class="modal" open><form method="dialog" class="modal-card"><h2 class="modal-title">模型配置</h2><p class="modal-lead">请先确认模型连接，再进入聊天。</p><label class="field"><span class="field-label">运行模式</span><select id="llmModeSelect"><option value="direct">前端直连模式（默认）</option><option value="backend">后端模式</option></select></label><div id="backendFields"><label class="field"><span class="field-label">后端 API 基础地址</span><input id="apiBaseUrlInput" type="text" placeholder="留空则使用当前站点或默认后端地址" /></label></div><div id="directFields"><label class="field"><span class="field-label">前端模型 API Key</span><input id="apiKeyInput" type="password" placeholder="前端直连模式时填写" /></label><label class="field"><span class="field-label">前端模型名称</span><input id="apiModelInput" type="text" placeholder="例如 gpt-4o-mini / deepseek-chat" /></label><label class="field"><span class="field-label">前端模型 Base URL</span><input id="apiModelBaseInput" type="text" placeholder="例如 https://api.openai.com/v1" /></label></div><div id="settingsHint" class="result-summary">前端直连模式会把配置保存在本地并直接请求模型服务。</div><div id="settingsResult" class="result-summary" aria-live="polite">这里会显示测试结果。</div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnTestBackendConnection">测试后端连接</button><button type="button" class="btn btn-secondary" id="btnTestDirectConnection">测试前端连接</button><button type="button" class="btn btn-secondary" id="btnResetApiBaseUrl">恢复默认</button><button type="button" class="btn btn-primary" id="btnSettingsDone">完成并进入聊天</button></div></form></dialog>
+
+    <script src="/static/app-state.js?v=2026-05-01-chatfix"></script><script src="/static/app-helpers.js?v=2026-05-01-chatfix"></script><script src="/static/app-api.js?v=2026-05-03-opt"></script><script src="/static/app-render.js?v=2026-05-01-chatfix"></script><script src="/static/app-flow.js?v=2026-05-01-chatfix"></script><script src="/static/app-main.js?v=2026-05-01-chatfix"></script><script src="/static/app-chat.js?v=2026-05-01-chatfix"></script><script src="/static/app-journey.js?v=2026-05-01-chatfix"></script><script src="/static/app.js?v=2026-05-01-chatfix"></script><script src="/static/app-init.js?v=2026-05-03-settingsfix"></script><script src="/static/app-entry.js?v=2026-05-01-chatfix"></script>
+  </body>
+</html>

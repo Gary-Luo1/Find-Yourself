@@ -3,7 +3,7 @@ import pytest
 
 import main
 from llm import parse_json_from_llm
-from main import _safe_docx_basename, app, resolve_llm
+from main import _safe_docx_basename, app
 
 
 def test_parse_json_from_llm_accepts_fenced_json():
@@ -83,21 +83,29 @@ def test_analyze_multi_requires_at_least_two_jobs():
     assert resp.status_code == 422
 
 
-def test_compare_improvement_returns_summary():
+def test_memory_save_and_get_round_trip():
     client = TestClient(app)
-    resp = client.post(
-        "/api/v1/compare-improvement",
+    save_resp = client.post(
+        "/api/v1/memory/save",
         json={
-            "before_resume": "负责系统开发\n参与需求讨论\nPython FastAPI",
-            "after_resume": "主导 FastAPI 服务开发并上线，接口延迟下降 20%\nPython FastAPI Docker CI/CD",
-            "job_description": "需要 Python FastAPI Docker CI/CD 经验，强调量化成果",
+            "client_id": "pytest-client",
+            "memory": {
+                "profile": {
+                    "basic_info": {"school": "A 大学"},
+                    "career_preferences": {"target_roles": ["后端开发"]},
+                },
+                "state": {"current_stage": "apply"},
+                "summary": "已记录",
+            },
         },
     )
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert "summary" in data
-    assert "keyword_coverage" in data
-    assert "ats_risk" in data
+    assert save_resp.status_code == 200
+
+    get_resp = client.get("/api/v1/memory", params={"client_id": "pytest-client"})
+    assert get_resp.status_code == 200
+    data = get_resp.json()["data"]
+    assert data["profile"]["basic_info"]["school"] == "A 大学"
+    assert data["state"]["current_stage"] == "apply"
 
 
 def test_interview_simulate_rejects_invalid_focus():
@@ -125,16 +133,28 @@ def test_client_config_returns_llm_mode(monkeypatch):
     assert data["trust_client_llm"] is False
 
 
-def test_resolve_llm_byok_base_url_allowlist(monkeypatch):
-    monkeypatch.setattr(main.settings, "llm_mode", "byok")
-    monkeypatch.setattr(main.settings, "openai_api_key", "")
-    monkeypatch.setattr(main.settings, "allowed_client_base_urls", "https://api.openai.com/v1")
-    with pytest.raises(main.HTTPException) as ex:
-        resolve_llm(
-            main.LLMOverrides(
-                api_key="sk-test",
-                base_url="https://evil.example.com/v1",
-                model="gpt-4o-mini",
-            )
-        )
-    assert ex.value.status_code == 400
+def test_page_routes_return_html():
+    client = TestClient(app)
+    for path in ["/", "/chat.html", "/resume.html", "/analyze.html", "/journey.html"]:
+        resp = client.get(path)
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+
+
+def test_chat_endpoint_rejects_empty_message():
+    client = TestClient(app)
+    resp = client.post("/api/chat", json={"message": "", "client_id": "pytest-client"})
+    assert resp.status_code == 400
+    assert "请先输入内容" in resp.json()["detail"]
+
+
+def test_memory_endpoint_defaults_to_default_client():
+    client = TestClient(app)
+    resp = client.get("/api/v1/memory")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["client_id"] == "default"
+    assert "profile" in data["data"]
+    assert "state" in data["data"]
+
+

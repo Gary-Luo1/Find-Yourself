@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#fbfbfd" />
-    <title>Find Yourself · 分析与优化</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23656cf0'/%3E%3Ctext x='32' y='40' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif'%3EFY%3C/text%3E%3C/svg%3E" />
+    <title>Find Yourself · 陪想</title>
     <link rel="stylesheet" href="/static/styles.css?v=2026-04-28-cute-ui" />
   </head>
   <body>
@@ -13,10 +14,10 @@
       <nav class="nav wrap" aria-label="主导航">
         <a class="nav-brand" href="/" aria-label="返回首页"><span class="nav-logo" aria-hidden="true"></span><span class="nav-title">Find Yourself</span></a>
         <div class="nav-actions" role="tablist" aria-label="流程导航">
-          <a class="nav-tab" data-step="chat" href="/chat.html">聊聊</a>
-          <a class="nav-tab" data-step="resume" href="/resume.html">简历输入</a>
-          <a class="nav-tab" data-step="analyze" href="/analyze.html">分析与优化</a>
-          <a class="nav-tab" data-step="journey" href="/journey.html">求职旅程</a>
+          <a class="nav-tab" data-step="chat" href="/chat.html">陪聊</a>
+          <a class="nav-tab" data-step="resume" href="/resume.html">陪看</a>
+          <a class="nav-tab" data-step="analyze" href="/analyze.html">陪想</a>
+          <a class="nav-tab" data-step="journey" href="/journey.html">陪记</a>
         </div>
       </nav>
     </header>
@@ -41,11 +42,11 @@
             <div class="feature-output" id="outputAnalyze" aria-live="polite">结果将显示在这里…</div>
           </section>
           <section class="feature-card" data-feature="tailor">
-            <button type="button" class="btn btn-secondary btn-block" id="btnTailor">简历润色</button>
+            <button type="button" class="btn btn-primary btn-block btn-priority" id="btnTailor">简历润色</button>
             <div class="feature-output" id="outputTailor" aria-live="polite">结果将显示在这里…</div>
           </section>
           <section class="feature-card" data-feature="interview">
-            <button type="button" class="btn btn-secondary btn-block" id="btnInterviewSim">面试模拟</button>
+            <button type="button" class="btn btn-primary btn-block btn-priority" id="btnInterviewSim">面试模拟</button>
             <div class="feature-output" id="outputInterview" aria-live="polite">结果将显示在这里…</div>
           </section>
         </div>
@@ -56,6 +57,6 @@
     <dialog id="dlgSettings" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">模型设置</h2><p class="modal-lead">当前版本已将模型配置固定在后端，不再需要前端填写。</p><div class="result-summary">如果后续要调整模型参数，请直接修改服务端 `.env` 配置。</div><div class="modal-actions"><button type="button" class="btn btn-primary" id="btnSaveSettings">知道了</button></div></form></dialog>
     <dialog id="dlgMemory" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">编辑我的求职画像</h2><p class="modal-lead">你可以补充、修改或清除系统记住的关键信息。</p><label class="field"><span class="field-label">已知稳定信息</span><textarea id="memoryStableFacts" rows="4"></textarea></label><label class="field"><span class="field-label">偏好 / 倾向</span><textarea id="memoryPreferences" rows="4"></textarea></label><label class="field"><span class="field-label">待确认问题</span><textarea id="memoryOpenQuestions" rows="4"></textarea></label><label class="field"><span class="field-label">画像摘要</span><textarea id="memorySummaryInput" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnMemoryClear">仅清空内容</button><button type="button" class="btn btn-primary" id="btnMemorySave">保存画像</button></div></form></dialog>
     <dialog id="dlgEmotion" class="modal"><form method="dialog" class="modal-card"><h2 class="modal-title">说说心情</h2><p class="modal-lead">这里是一个安全的情绪出口。</p><label class="field"><span class="field-label">现在最想说的话</span><textarea id="emotionInput" rows="6"></textarea></label><label class="field"><span class="field-label">我想让系统记住的感受</span><textarea id="emotionTakeaway" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnEmotionClear">清空内容</button><button type="button" class="btn btn-primary" id="btnEmotionSave">记录并关掉</button></div></form></dialog>
-    <script src="/static/app-state.js?v=2026-04-28-cute-ui"></script><script src="/static/app-main.js?v=2026-04-28-cute-ui"></script><script src="/static/app-helpers.js?v=2026-04-28-cute-ui"></script><script src="/static/app-render.js?v=2026-04-28-cute-ui"></script><script src="/static/app-api.js?v=2026-04-28-cute-ui"></script><script src="/static/app-flow.js?v=2026-04-28-cute-ui"></script><script src="/static/app.js?v=2026-04-28-cute-ui"></script><script src="/static/app-init.js?v=2026-04-28-cute-ui"></script>
+    <script src="/static/app-modules.js?v=2026-05-03-opt"></script><script src="/static/app-state.js?v=2026-04-28-cute-ui"></script><script src="/static/app-main.js?v=2026-05-03-opt"></script><script src="/static/app-helpers.js?v=2026-04-28-cute-ui"></script><script src="/static/app-render.js?v=2026-04-28-cute-ui"></script><script src="/static/app-api.js?v=2026-04-28-cute-ui"></script><script src="/static/app-flow.js?v=2026-05-03-opt"></script><script src="/static/app.js?v=2026-05-03-opt"></script><script src="/static/app-init.js?v=2026-05-03-analyzebindfix"></script><script src="/static/app-entry.js?v=2026-05-03-analyzebindfix"></script>
   </body>
 </html>

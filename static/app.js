@@ -20,24 +20,31 @@ function getResumeJobDrafts() {
   return { resume, job };
 }
 
+const __analysisRunSeq = {};
+
 async function callAnalysisApi(endpoint, body, feature = "main") {
+  const runId = (__analysisRunSeq[feature] || 0) + 1;
+  __analysisRunSeq[feature] = runId;
   setLoading(true);
   setStatus("正在分析，请稍候…", false);
+  setFeatureOutput(feature, "正在分析中...");
   try {
     const result = await postJson(endpoint, body);
-    const normalized = normalizeResultData ? normalizeResultData(result) : result;
+    if (__analysisRunSeq[feature] !== runId) return null;
+    const payload = result && typeof result === "object" && result.data ? result.data : result;
+    const normalized = normalizeResultData ? normalizeResultData(payload) : payload;
     const plainText = formatModelPlainText(normalized);
     setFeatureOutput(feature, plainText);
     setStatus("分析完成。", false);
     return normalized;
   } catch (err) {
-    const msg = friendlyErrorMessage(err);
-    const detail = err && err.response ? JSON.stringify(err.response, null, 2) : "";
+    if (__analysisRunSeq[feature] !== runId) return null;
+    const msg = "调用失败，请检查模型配置";
     setStatus(msg, true);
-    setFeatureOutput(feature, detail ? `${msg}\n\n${detail}` : msg);
+    setFeatureOutput(feature, msg);
     return null;
   } finally {
-    setLoading(false);
+    if (__analysisRunSeq[feature] === runId) setLoading(false);
   }
 }
 
@@ -69,83 +76,3 @@ async function runInterviewSim() {
   if (!validateInputs(resume, job)) return null;
   return callAnalysisApi("/api/v1/interview", { resume, job, client_id: getClientId(), memory: getMemoryState(), ...llmPayload() }, "interview");
 }
-
-function ensureChatWelcome() {
-  const thread = getChatThread();
-  if (thread.length) return;
-  saveChatThread([
-    { id: `m_${Date.now()}_welcome`, role: "assistant", content: "你好，我会先通过几个开放问题了解你现在的求职困惑。你也可以直接告诉我：你最想先解决什么？", time: nowLabel(), pending: false },
-  ]);
-}
-
-async function runChatMvp() {
-  const input = $("chatInput");
-  const text = String((input && input.value) || "").trim();
-  if (!text) {
-    setStatus("请先输入你想聊的内容。", true);
-    return null;
-  }
-  if (input) input.value = "";
-  return sendChatMessage(text);
-}
-
-function bindChatInputEnter() {
-  const input = $("chatInput");
-  if (!input) return;
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      const form = $("chatForm");
-      if (form && !input.disabled) form.requestSubmit();
-    }
-  });
-}
-
-function bindChatToolbar() {
-  const historyBtn = $("btnChatHistory");
-  if (historyBtn) {
-    historyBtn.addEventListener("click", () => {
-      renderChatThread();
-      scrollChatToLatest();
-    });
-  }
-  const latestBtn = $("btnChatJumpLatest");
-  if (latestBtn) {
-    latestBtn.addEventListener("click", () => scrollChatToLatest());
-  }
-  const clearBtn = $("btnChatClear");
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      clearChatHistory();
-    });
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const thread = $("chatThread");
-  if (thread) {
-    ensureChatWelcome();
-    renderChatThread();
-    scrollChatToLatest();
-  }
-
-  const form = $("chatForm");
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await runChatMvp();
-    });
-  }
-
-  const seed = $("btnChatSeed");
-  if (seed) {
-    seed.addEventListener("click", async () => {
-      const input = $("chatInput");
-      if (input && !input.value.trim()) input.value = "我现在最担心的是不知道自己适合什么方向，你可以先帮我问几个问题。";
-      await runChatMvp();
-    });
-  }
-
-  bindChatInputEnter();
-  bindChatToolbar();
-});
