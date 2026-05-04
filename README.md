@@ -84,47 +84,65 @@
 
 ## 公网部署
 
-推荐使用 **Railway + Vercel**：
+当前更适合先使用 **阿里云 ECS + 直连公网 IP** 的方式上线，确认功能可用后，再按需要切换到域名、HTTPS、Vercel 或其他前端托管方案。
 
-- Railway：部署 FastAPI 后端
-- Vercel：部署静态前端
-- Vercel 通过 `/api/*` rewrite 访问 Railway 后端
+### Windows ECS 快速上线
 
-### Railway 后端
+如果你的阿里云服务器是 Windows 系统，可以直接把整个项目放到服务器上运行 FastAPI：
 
-项目已提供 `railway.json` 与 `Procfile`，可直接部署。
+1. 将项目解压到服务器，例如：`C:\Users\Administrator\resume-matcher\resume-matcher`
+2. 安装 Python 3.10+、Git（可选）
+3. 进入项目目录，创建虚拟环境：
 
-部署步骤：
-
-1. 在 Railway 新建项目并连接本仓库
-2. 保持默认 `NIXPACKS` 构建（已在 `railway.json` 配置）
-3. 启动命令使用：`python -m uvicorn main:app --host 0.0.0.0 --port ${PORT}`
-4. 部署完成后获取后端域名（如 `https://xxx.up.railway.app`）
-
-Railway 环境变量至少需要配置：
-
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`（默认可用 `https://api.openai.com/v1`）
-- `OPENAI_MODEL`
-- `APP_ENV=production`
-- `CORS_ALLOW_ORIGINS=https://你的Vercel域名.vercel.app`
-- `EXPOSE_API_DOCS=false`
-
-### Vercel 前端
-
-项目已提供 `vercel.json`，请把其中 `/api/:path*` 的 `destination` 改为你的 Railway 域名，例如：
-
-```json
-{ "source": "/api/:path*", "destination": "https://xxx.up.railway.app/api/:path*" }
+```powershell
+cd C:\Users\Administrator\resume-matcher\resume-matcher
+python -m venv .venv
 ```
 
-其余规则已就绪：
+4. 安装依赖：
 
-- `/chat`、`/resume`、`/analyze`、`/journey`、`/settings` 会转到对应静态页面
-- `/static/*` 会正常访问静态资源
-- `/` 会转到 `index.html`
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-部署到 Vercel 后，前端可直接通过同域 `/api/*` 调用后端。
+5. 设置环境变量：
+
+```powershell
+$env:OPENAI_API_KEY="你的key"
+$env:OPENAI_BASE_URL="https://api.openai.com/v1"
+$env:OPENAI_MODEL="你的模型名"
+$env:APP_ENV="production"
+$env:CORS_ALLOW_ORIGINS="http://127.0.0.1:8000"
+$env:EXPOSE_API_DOCS="false"
+$env:MAX_UPLOAD_BYTES="10485760"
+```
+
+6. 启动服务：
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+7. 在阿里云安全组和 Windows 防火墙中放行 `8000` 端口
+8. 通过公网 IP 访问：`http://你的公网IP:8000/`
+
+### 阿里云部署注意事项
+
+- `uvicorn` 必须监听 `0.0.0.0`，不能只监听 `127.0.0.1`
+- 阿里云安全组需要放行对应端口（测试阶段至少放行 `8000`）
+- Windows 防火墙也需要允许入站 `8000` 端口
+- 如果你希望更正式，可以后续再加域名、HTTPS 和 80/443 端口反代
+
+### 以后如果切换到 Vercel + 后端分离
+
+如果你后续想把前端放到 Vercel、后端继续放在 ECS 或其他平台，可以保留下面这类架构：
+
+- 后端：FastAPI API 服务
+- 前端：Vercel 静态页面
+- 通过 `/api/*` 或前端配置的 API Base URL 访问后端
+
+这种方式适合更正式的生产环境，但不如 Windows ECS 直连公网 IP 上线快。
 
 ## 运行方式
 
