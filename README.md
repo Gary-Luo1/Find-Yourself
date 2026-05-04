@@ -84,44 +84,45 @@
 
 ## 公网部署
 
-推荐使用 **Render + Vercel**：
+推荐使用 **Railway + Vercel**：
 
-- Render：部署 FastAPI 后端
+- Railway：部署 FastAPI 后端
 - Vercel：部署静态前端
-- Vercel 通过 `/api/*` rewrite 访问 Render 后端
+- Vercel 通过 `/api/*` rewrite 访问 Railway 后端
 
-### Render 后端
+### Railway 后端
 
-项目已提供 `render.yaml`，默认服务名为：
+项目已提供 `railway.json` 与 `Procfile`，可直接部署。
 
-```text
-find-yourself-api
-```
+部署步骤：
 
-对应默认后端域名通常为：
+1. 在 Railway 新建项目并连接本仓库
+2. 保持默认 `NIXPACKS` 构建（已在 `railway.json` 配置）
+3. 启动命令使用：`python -m uvicorn main:app --host 0.0.0.0 --port ${PORT}`
+4. 部署完成后获取后端域名（如 `https://xxx.up.railway.app`）
 
-```text
-https://find-yourself-api.onrender.com
-```
-
-Render 环境变量至少需要配置：
+Railway 环境变量至少需要配置：
 
 - `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`
+- `OPENAI_BASE_URL`（默认可用 `https://api.openai.com/v1`）
 - `OPENAI_MODEL`
 - `APP_ENV=production`
 - `CORS_ALLOW_ORIGINS=https://你的Vercel域名.vercel.app`
 - `EXPOSE_API_DOCS=false`
 
-如果 Render 服务名不是 `find-yourself-api`，需要同步修改 `vercel.json` 中 `/api/:path*` 的 rewrite 目标。
-
 ### Vercel 前端
 
-项目已提供 `vercel.json`：
+项目已提供 `vercel.json`，请把其中 `/api/:path*` 的 `destination` 改为你的 Railway 域名，例如：
 
-- `/api/*` 会转发到 Render 后端
-- `/chat`、`/resume`、`/analyze`、`/journey` 会转到对应静态页面
+```json
+{ "source": "/api/:path*", "destination": "https://xxx.up.railway.app/api/:path*" }
+```
+
+其余规则已就绪：
+
+- `/chat`、`/resume`、`/analyze`、`/journey`、`/settings` 会转到对应静态页面
 - `/static/*` 会正常访问静态资源
+- `/` 会转到 `index.html`
 
 部署到 Vercel 后，前端可直接通过同域 `/api/*` 调用后端。
 
